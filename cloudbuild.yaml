@@ -1,0 +1,43 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker pull ${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:latest || exit 0
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - ${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:$SHORT_SHA
+      - -t
+      - ${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:latest
+      - .
+      - --cache-from
+      - ${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:latest
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:$SHORT_SHA']
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - run
+      - deploy
+      - swift-api-demo
+      - --image=${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:$SHORT_SHA
+      - --port=8080
+      - --region=${_REGION}
+      - --memory=${_MEM}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=5
+      - --set-env-vars
+      - ^;^ENV=production; DATABASE_HOST=${_DATABASE_HOST};
+        DATABASE_PORT=${_DATABASE_PORT};
+        DATABASE_USERNAME=${_DATABASE_USERNAME};
+        DATABASE_PASSWORD=${_DATABASE_PASSWORD};
+        DATABASE_NAME=${_DATABASE_NAME}; GOOGLE_CLOUD_PROJECT=$PROJECT_ID;
+        GCLOUD_PROJECT_ID=$PROJECT_ID; GCLOUD_PROJECT=$PROJECT_ID
+images:
+  - '${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:$SHORT_SHA'
+  - '${_REGISTRY}/$PROJECT_ID/swift-api-demo/api:latest'
+timeout: 1800s
